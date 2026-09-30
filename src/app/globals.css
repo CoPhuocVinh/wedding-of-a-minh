@@ -36,17 +36,123 @@ body {
   color: var(--color-accent);
 }
 
-/* Scroll reveal, toggled by <Reveal>. */
+/* ---------- Scroll reveal, toggled by <Reveal> ---------- */
 .reveal {
   opacity: 0;
   transform: translateY(24px);
   transition:
     opacity 0.9s ease,
-    transform 0.9s ease;
+    transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.reveal[data-v="left"] {
+  transform: translateX(-36px);
+}
+.reveal[data-v="right"] {
+  transform: translateX(36px);
+}
+.reveal[data-v="zoom"] {
+  transform: scale(0.9);
 }
 .reveal.is-visible {
   opacity: 1;
   transform: none;
+}
+
+/* Details that wait for their <Reveal> ancestor. */
+.heading-rule {
+  transform: scaleX(0);
+  transition: transform 0.9s 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.is-visible .heading-rule {
+  transform: scaleX(1);
+}
+.pop {
+  transform: scale(0);
+}
+.is-visible .pop {
+  animation: pop 0.55s var(--d, 0s) cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.heart-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+.is-visible .heart-draw {
+  animation: draw 1.3s 0.5s ease-in-out forwards;
+}
+.is-visible .heart-beat {
+  animation: heartbeat 1.6s 1.9s ease-in-out infinite;
+}
+
+/* ---------- Hero entrance, started as the card opens ---------- */
+[data-revealed="false"] .hero-rise {
+  opacity: 0;
+}
+[data-revealed="true"] .hero-rise {
+  animation: rise 0.9s var(--d, 0s) cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+[data-revealed="true"] .hero-photo {
+  animation: kenburns 26s 0.6s ease-out both;
+}
+
+/* ---------- Overlays: menu, gift sheet, gallery, lightbox (see usePresence) ---------- */
+.ov[data-state="open"] {
+  animation: fade-in 0.25s ease-out both;
+}
+.ov[data-state="closed"] {
+  animation: fade-out 0.2s ease-in both;
+}
+.sheet[data-state="open"] {
+  animation: sheet-up 0.38s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.sheet[data-state="closed"] {
+  animation: sheet-down 0.2s ease-in both;
+}
+.zoom-in {
+  animation: zoom-in 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.rise {
+  animation: rise 0.5s var(--d, 0s) cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.tick {
+  display: inline-block;
+  animation: tick 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* ---------- Falling baby's breath (see <Petals>) ---------- */
+.petal {
+  position: absolute;
+  top: 0;
+  left: var(--x);
+  width: var(--s);
+  opacity: 0;
+  animation: petal-fall var(--t) var(--d) linear infinite paused;
+  will-change: transform;
+}
+[data-active="true"] > .petal {
+  animation-play-state: running;
+}
+[data-revealed="false"] .petal {
+  animation-play-state: paused;
+}
+.petal > svg {
+  display: block;
+  width: 100%;
+  animation: petal-sway calc(var(--t) / 3.5) ease-in-out infinite alternate;
+}
+
+/* ---------- Hearts: wish sent, gift box opened ---------- */
+.heart-fly {
+  position: absolute;
+  opacity: 0;
+  animation: heart-fly 1.4s var(--d, 0s) cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+/* ---------- Parallax, where the browser supports scroll-driven animation ---------- */
+@supports (animation-timeline: view()) {
+  .parallax {
+    animation: parallax linear both;
+    animation-timeline: view();
+  }
 }
 
 @keyframes eq {
@@ -107,17 +213,184 @@ body {
   }
 }
 
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes kenburns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.12);
+  }
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes heartbeat {
+  0%,
+  40%,
+  100% {
+    transform: scale(1);
+  }
+  12% {
+    transform: scale(1.16);
+  }
+  24% {
+    transform: scale(1.04);
+  }
+  32% {
+    transform: scale(1.12);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sheet-down {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+}
+
+@keyframes zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes tick {
+  from {
+    opacity: 0;
+    transform: translateY(-45%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* cqh: the petal layer is a size container, so this is its full height. */
+@keyframes petal-fall {
+  0% {
+    transform: translate3d(0, -8cqh, 0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: var(--o);
+  }
+  85% {
+    opacity: var(--o);
+  }
+  100% {
+    transform: translate3d(var(--drift), 106cqh, 0) rotate(var(--spin));
+    opacity: 0;
+  }
+}
+
+@keyframes petal-sway {
+  from {
+    transform: translateX(-9px);
+  }
+  to {
+    transform: translateX(9px);
+  }
+}
+
+@keyframes heart-fly {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.3);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--x), var(--y)) scale(1) rotate(var(--r));
+  }
+}
+
+@keyframes parallax {
+  from {
+    transform: translateY(-9%);
+  }
+  to {
+    transform: translateY(9%);
+  }
+}
+
+/* Guests who asked their device for less motion get a still, instant page. */
 @media (prefers-reduced-motion: reduce) {
   .reveal {
     opacity: 1;
     transform: none;
-    transition: none;
+  }
+  .petal,
+  .heart-fly {
+    display: none;
+  }
+  .parallax {
+    animation: none;
   }
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
     scroll-behavior: auto !important;
   }
 }

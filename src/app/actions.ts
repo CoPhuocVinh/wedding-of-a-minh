@@ -5,7 +5,8 @@ import { updateTag } from "next/cache";
 import { TAGS } from "@/lib/data";
 import { storage } from "@/lib/storage";
 
-export type WishState = { ok: boolean; error?: string } | null;
+/** `at` is unique per successful send, so the form can replay its thank-you. */
+export type WishState = { ok: boolean; error?: string; at?: number } | null;
 
 export async function sendWish(_prev: WishState, form: FormData): Promise<WishState> {
   // Honeypot: bots fill every field, people never see this one.
@@ -27,5 +28,5 @@ export async function sendWish(_prev: WishState, form: FormData): Promise<WishSt
     return { ok: false, error: "Gửi chưa được, bạn thử lại giúp mình nhé." };
   }
   updateTag(TAGS.wishes);
-  return { ok: true };
+  return { ok: true, at: Date.now() };
 }

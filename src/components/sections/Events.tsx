@@ -8,8 +8,8 @@ import type { WeddingEvent } from "@/lib/types";
 export function Events({ events }: { events: WeddingEvent[] }) {
   return (
     <div className="space-y-8">
-      {events.map((e) => (
-        <Reveal key={e.id}>
+      {events.map((e, i) => (
+        <Reveal key={e.id} variant={i % 2 ? "right" : "left"}>
           <article className="overflow-hidden rounded-3xl bg-card shadow-[0_12px_30px_rgba(120,90,60,.1)]">
             {e.photo && (
               <div className="relative aspect-[4/3]">

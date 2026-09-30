@@ -6,6 +6,7 @@ import { Reveal } from "../Reveal";
 import { ChevronIcon, CloseIcon } from "../icons";
 import type { Photo } from "@/lib/types";
 import { announceVideo, videoEmbedUrl } from "@/lib/video";
+import { usePresence } from "../usePresence";
 
 // The page only ever shows a few photos; the rest live in a full-screen
 // gallery, so a 200-photo album doesn't push the wishes and gift sections
@@ -34,7 +35,15 @@ function Thumb({ photo, sizes }: { photo: Photo; sizes: string }) {
 
 export function Album({ photos }: { photos: Photo[] }) {
   const [gallery, setGallery] = useState(false);
-  const [active, setActive] = useState<number | null>(null);
+  // The index outlives `viewing` so the photo is still there while it fades out.
+  const [active, setActive] = useState(0);
+  const [viewing, setViewing] = useState(false);
+  const galleryUi = usePresence(gallery);
+  const lightboxUi = usePresence(viewing);
+  const view = (i: number) => {
+    setActive(i);
+    setViewing(true);
+  };
   const hidden = photos.length - PREVIEW;
   const videos = photos.filter((p) => p.video).length;
   const summary = videos ? `${photos.length - videos} ảnh & ${videos} video` : `${photos.length} ảnh`;
@@ -45,10 +54,10 @@ export function Album({ photos }: { photos: Photo[] }) {
         {photos.slice(0, PREVIEW).map((p, i) => {
           const more = i === PREVIEW - 1 && hidden > 0;
           return (
-            <Reveal key={p.id} className={i === 0 ? "col-span-2" : ""} delay={i * 60}>
+            <Reveal key={p.id} className={i === 0 ? "col-span-2" : ""} delay={i * 90} variant="zoom">
               <button
                 type="button"
-                onClick={() => (more ? setGallery(true) : setActive(i))}
+                onClick={() => (more ? setGallery(true) : view(i))}
                 className={`relative block w-full overflow-hidden rounded-2xl bg-[#2e2822] ${i === 0 ? "aspect-[4/3]" : "aspect-[3/4]"}`}
               >
                 <Thumb photo={p} sizes={i === 0 ? "(max-width: 480px) 100vw, 440px" : "(max-width: 480px) 50vw, 220px"} />
@@ -73,8 +82,12 @@ export function Album({ photos }: { photos: Photo[] }) {
           </button>
         </div>
       )}
-      {gallery && <Gallery photos={photos} title={summary} onPick={setActive} onClose={() => setGallery(false)} paused={active !== null} />}
-      {active !== null && <Lightbox photos={photos} index={active} onChange={setActive} />}
+      {galleryUi.mounted && (
+        <Gallery photos={photos} title={summary} onPick={view} onClose={() => setGallery(false)} paused={viewing} state={galleryUi.state} />
+      )}
+      {lightboxUi.mounted && (
+        <Lightbox photos={photos} index={active} onChange={setActive} onClose={() => setViewing(false)} state={lightboxUi.state} />
+      )}
     </>
   );
 }
@@ -86,6 +99,7 @@ function Gallery({
   onPick,
   onClose,
   paused,
+  state,
 }: {
   photos: Photo[];
   title: string;
@@ -93,6 +107,7 @@ function Gallery({
   onClose: () => void;
   /** The lightbox is open and owns the Escape key. */
   paused: boolean;
+  state: "open" | "closed";
 }) {
   useEffect(() => {
     if (paused) return;
@@ -102,7 +117,7 @@ function Gallery({
   }, [paused, onClose]);
 
   return (
-    <div className="fixed inset-0 z-[55] flex flex-col bg-cream" role="dialog" aria-label="Album ảnh cưới">
+    <div data-state={state} className="sheet fixed inset-0 z-[55] flex flex-col bg-cream" role="dialog" aria-label="Album ảnh cưới">
       <div className="mx-auto flex h-14 w-full max-w-[480px] shrink-0 items-center justify-between border-b border-line px-4">
         <p className="font-serif text-lg">
           Album cưới <span className="text-sm text-muted">· {title}</span>
@@ -128,10 +143,14 @@ function Lightbox({
   photos,
   index,
   onChange,
+  onClose,
+  state,
 }: {
   photos: Photo[];
   index: number;
-  onChange: (i: number | null) => void;
+  onChange: (i: number) => void;
+  onClose: () => void;
+  state: "open" | "closed";
 }) {
   const touchX = useRef<number | null>(null);
   const item = photos[index];
@@ -151,17 +170,18 @@ function Lightbox({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onChange(null);
+      if (e.key === "Escape") onClose();
       if (e.key === "ArrowRight") go(1);
       if (e.key === "ArrowLeft") go(-1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [go, onChange]);
+  }, [go, onClose]);
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90"
+      data-state={state}
+      className="ov fixed inset-0 z-[60] flex items-center justify-center bg-black/90"
       onTouchStart={(e) => (touchX.current = e.touches[0].clientX)}
       onTouchEnd={(e) => {
         if (touchX.current === null) return;
@@ -177,14 +197,15 @@ function Lightbox({
           title={item.alt || "Video cưới"}
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
           allowFullScreen
-          className={item.video.vertical ? "aspect-[9/16] h-[80svh] max-w-full" : "aspect-video w-full max-w-3xl"}
+          className={`zoom-in ${item.video.vertical ? "aspect-[9/16] h-[80svh] max-w-full" : "aspect-video w-full max-w-3xl"}`}
         />
       ) : (
-        <div className="relative h-[80svh] w-full max-w-3xl">
+        // Re-keyed per photo so each one eases in as you swipe.
+        <div key={item.id} className="zoom-in relative h-[80svh] w-full max-w-3xl">
           <Image src={item.url} alt={item.alt} fill quality={90} sizes="100vw" className="object-contain" />
         </div>
       )}
-      <button type="button" aria-label="Đóng" onClick={() => onChange(null)} className="absolute top-4 right-4 p-2 text-white">
+      <button type="button" aria-label="Đóng" onClick={onClose} className="absolute top-4 right-4 p-2 text-white">
         <CloseIcon width={26} height={26} />
       </button>
       <button type="button" aria-label="Ảnh trước" onClick={() => go(-1)} className="absolute left-2 p-3 text-white/80">

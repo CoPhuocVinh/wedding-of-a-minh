@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { VIDEO_EVENT } from "@/lib/video";
 import { CloseIcon, MenuIcon } from "../icons";
+import { usePresence } from "../usePresence";
 import { Envelope, type CardInfo } from "./Envelope";
 
 type NavItem = { id: string; label: string };
@@ -25,8 +26,12 @@ const TOUCH_PULL = 80;
 export function InvitationShell({ children, envelope, monogram, nav, musicUrl, showWishButton }: Props) {
   // "intro": closed card on arrival. "closing": the card folding back shut.
   const [card, setCard] = useState<"intro" | "closing" | null>("intro");
+  // True from the tap that opens the card until it is shut again; starts the
+  // hero's entrance (see `data-revealed` in globals.css).
+  const [revealed, setRevealed] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menu = usePresence(menuOpen);
   const audio = useRef<HTMLAudioElement>(null);
   const firstOpen = useRef(true);
 
@@ -90,6 +95,7 @@ export function InvitationShell({ children, envelope, monogram, nav, musicUrl, s
   }, []);
 
   function onStart() {
+    setRevealed(true);
     // Music starts on the first opening only; later a guest may have muted it.
     if (!firstOpen.current) return;
     firstOpen.current = false;
@@ -123,8 +129,8 @@ export function InvitationShell({ children, envelope, monogram, nav, musicUrl, s
         </button>
       </header>
 
-      {menuOpen && (
-        <div className="fixed inset-0 z-40 mx-auto max-w-[480px] bg-cream/97 backdrop-blur-sm">
+      {menu.mounted && (
+        <div data-state={menu.state} className="ov fixed inset-0 z-40 mx-auto max-w-[480px] bg-cream/97 backdrop-blur-sm">
           <div className="flex h-14 items-center justify-between px-5">
             <span className="font-serif text-lg tracking-[0.2em]">{monogram}</span>
             <button type="button" aria-label="Đóng menu" onClick={() => setMenuOpen(false)} className="p-1">
@@ -138,16 +144,17 @@ export function InvitationShell({ children, envelope, monogram, nav, musicUrl, s
                 setMenuOpen(false);
                 closeCard();
               }}
-              className="font-serif text-2xl text-ink hover:text-accent"
+              className="rise font-serif text-2xl text-ink hover:text-accent"
             >
               Thiệp mời
             </button>
-            {nav.map((item) => (
+            {nav.map((item, i) => (
               <a
                 key={item.id}
                 href={`#${item.id}`}
                 onClick={() => setMenuOpen(false)}
-                className="font-serif text-2xl text-ink hover:text-accent"
+                className="rise font-serif text-2xl text-ink hover:text-accent"
+                style={{ animationDelay: `${(i + 1) * 45}ms` }}
               >
                 {item.label}
               </a>
@@ -156,7 +163,10 @@ export function InvitationShell({ children, envelope, monogram, nav, musicUrl, s
         </div>
       )}
 
-      <main className="mx-auto min-h-svh max-w-[480px] overflow-x-clip bg-cream shadow-[0_0_40px_rgba(90,60,30,.08)]">
+      <main
+        data-revealed={revealed}
+        className="mx-auto min-h-svh max-w-[480px] overflow-x-clip bg-cream shadow-[0_0_40px_rgba(90,60,30,.08)]"
+      >
         {children}
       </main>
 
@@ -190,7 +200,16 @@ export function InvitationShell({ children, envelope, monogram, nav, musicUrl, s
         )}
       </div>
 
-      {card && <Envelope key={card} {...envelope} closing={card === "closing"} onStart={onStart} onDone={() => setCard(null)} />}
+      {card && (
+        <Envelope
+          key={card}
+          {...envelope}
+          closing={card === "closing"}
+          onStart={onStart}
+          onDone={() => setCard(null)}
+          onClosed={() => setRevealed(false)}
+        />
+      )}
     </>
   );
 }

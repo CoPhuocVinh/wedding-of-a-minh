@@ -2,14 +2,19 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
+/** How the block enters: rising (default), from a side, or growing. */
+export type RevealVariant = "up" | "left" | "right" | "zoom";
+
 export function Reveal({
   children,
   className = "",
   delay = 0,
+  variant = "up",
 }: {
   children: ReactNode;
   className?: string;
   delay?: number;
+  variant?: RevealVariant;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -30,7 +35,7 @@ export function Reveal({
   }, []);
 
   return (
-    <div ref={ref} className={`reveal ${className}`} style={{ transitionDelay: `${delay}ms` }}>
+    <div ref={ref} data-v={variant} className={`reveal ${className}`} style={{ transitionDelay: `${delay}ms` }}>
       {children}
     </div>
   );

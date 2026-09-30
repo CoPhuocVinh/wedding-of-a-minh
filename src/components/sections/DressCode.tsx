@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Reveal } from "../Reveal";
 import { ShirtIcon } from "../icons";
 import type { SiteContent } from "@/lib/types";
@@ -13,8 +14,8 @@ export function DressCode({ content }: { content: SiteContent }) {
           {content.dressCode.colors.map((c, i) => (
             <span
               key={i}
-              className="size-11 rounded-full shadow-[0_4px_12px_rgba(0,0,0,.15)] ring-1 ring-black/5"
-              style={{ background: c }}
+              className="pop size-11 rounded-full shadow-[0_4px_12px_rgba(0,0,0,.15)] ring-1 ring-black/5"
+              style={{ background: c, "--d": `${0.25 + i * 0.12}s` } as CSSProperties}
             />
           ))}
         </div>

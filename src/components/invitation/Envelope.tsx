@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useEffectEvent, useState, type CSSProperties } from "react";
 import seal from "@/assets/seal.png";
 import { LINEN, PAPER, Sprig, Twine } from "./card-art";
 
@@ -21,6 +21,8 @@ type Props = CardInfo & {
   onStart: () => void;
   /** Called once the card has fully slid away. */
   onDone: () => void;
+  /** Called once a closing card is shut again. */
+  onClosed?: () => void;
 };
 
 const EASE = "cubic-bezier(.7,0,.2,1)";
@@ -46,27 +48,44 @@ type Phase = "idle" | "crack" | "split" | "open";
 /** A phase plus how long the move into it takes, so both directions animate right. */
 type Step = { phase: Phase; ms: number };
 
-export function Envelope({ names, date, inviteLine, guest, closing = false, onStart, onDone }: Props) {
+const calm = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+export function Envelope({ names, date, inviteLine, guest, closing = false, onStart, onDone, onClosed }: Props) {
   const [{ phase, ms }, setStep] = useState<Step>({ phase: closing ? "open" : "idle", ms: 0 });
   const [y, m, d] = date.split("-");
 
   function open() {
     if (phase !== "idle") return;
-    setStep({ phase: "crack", ms: CRACK_MS });
     onStart();
+    // Reduced motion: no cracking or sliding, the card just gives way.
+    if (calm()) {
+      setStep({ phase: "open", ms: 0 });
+      return void setTimeout(onDone, 250);
+    }
+    setStep({ phase: "crack", ms: CRACK_MS });
     setTimeout(() => setStep({ phase: "split", ms: SPLIT_MS }), CRACK_MS);
     setTimeout(() => setStep({ phase: "open", ms: SLIDE_MS }), CRACK_MS + SPLIT_MS);
     setTimeout(onDone, CRACK_MS + SPLIT_MS + SLIDE_MS + 100);
   }
 
   // Closing: panels slide back in, the halves meet, then the crack heals.
+  const closed = useEffectEvent(() => onClosed?.());
   useEffect(() => {
     if (!closing) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
     const frame = requestAnimationFrame(() => {
+      if (calm()) {
+        setStep({ phase: "idle", ms: 0 });
+        return closed();
+      }
       setStep({ phase: "split", ms: SLIDE_MS });
       timers.push(setTimeout(() => setStep({ phase: "crack", ms: SPLIT_MS }), SLIDE_MS));
-      timers.push(setTimeout(() => setStep({ phase: "idle", ms: CRACK_MS }), SLIDE_MS + SPLIT_MS));
+      timers.push(
+        setTimeout(() => {
+          setStep({ phase: "idle", ms: CRACK_MS });
+          closed();
+        }, SLIDE_MS + SPLIT_MS),
+      );
     });
     return () => {
       cancelAnimationFrame(frame);

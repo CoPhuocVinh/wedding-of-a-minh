@@ -20,6 +20,8 @@ export function SectionHeading({
           {title}
         </h2>
       )}
+      {/* Draws itself once the heading is on screen. */}
+      <span className={`heading-rule mx-auto mt-5 block h-px w-16 ${light ? "bg-white/60" : "bg-accent/60"}`} />
     </Reveal>
   );
 }

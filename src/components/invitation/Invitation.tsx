@@ -4,6 +4,7 @@ import { getContent, getVisibleWishes } from "@/lib/data";
 import { longVi, toInstant } from "@/lib/date";
 import { lunarLine } from "@/lib/lunar";
 import { viewFor, type InviteView, type Section, type Side, type Wish } from "@/lib/types";
+import { Petals } from "../Petals";
 import { Reveal } from "../Reveal";
 import { SectionHeading } from "../SectionHeading";
 import { Album } from "../sections/Album";
@@ -76,9 +77,14 @@ const RENDERERS: Record<Section["type"], (ctx: Ctx) => ReactNode> = {
       <GiftBox gifts={view.content.gifts} />
     </Block>
   ),
+  // overflow-clip, not hidden: hidden would make the section the parallax's
+  // scroll container, and the photo would never move.
   countdown: ({ view: { content, info }, section }) => (
-    <section id={section.id} className="relative scroll-mt-14 overflow-hidden px-5 py-24">
-      <Image src={content.countdownPhoto} alt="" fill quality={90} sizes="(max-width: 480px) 100vw, 480px" className="object-cover" />
+    <section id={section.id} className="relative scroll-mt-14 overflow-clip px-5 py-24">
+      {/* Taller than the section so it can drift as the page scrolls. */}
+      <div className="parallax absolute inset-x-0 -inset-y-[10%]">
+        <Image src={content.countdownPhoto} alt="" fill quality={90} sizes="(max-width: 480px) 100vw, 480px" className="object-cover" />
+      </div>
       <div className="absolute inset-0 bg-black/55" />
       <div className="relative">
         <SectionHeading eyebrow={section.eyebrow} title={section.title} light />
@@ -96,8 +102,9 @@ const RENDERERS: Record<Section["type"], (ctx: Ctx) => ReactNode> = {
     </section>
   ),
   thanks: ({ view: { content, names }, section }) => (
-    <Block id={section.id}>
-      <Reveal className="text-center">
+    <section id={section.id} className="relative scroll-mt-14 overflow-hidden bg-cream px-5 py-20">
+      <Petals tone="cream" />
+      <Reveal className="relative text-center" variant="zoom">
         <div className="relative mx-auto size-48 overflow-hidden rounded-full shadow-[0_12px_30px_rgba(120,90,60,.15)] ring-8 ring-paper">
           <Image src={content.thanksPhoto} alt="" fill quality={90} sizes="192px" className="object-cover" />
         </div>
@@ -109,7 +116,7 @@ const RENDERERS: Record<Section["type"], (ctx: Ctx) => ReactNode> = {
         <p className="mx-auto mt-2 max-w-xs font-serif leading-relaxed text-ink/85">{content.thanksMessage}</p>
         <p className="mt-4 text-xl">💛💛💛</p>
       </Reveal>
-    </Block>
+    </section>
   ),
 };
 

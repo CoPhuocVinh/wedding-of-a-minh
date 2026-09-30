@@ -38,7 +38,12 @@ export function Countdown({ target }: { target: string }) {
     <div className="grid grid-cols-2 gap-3">
       {UNITS.map(([label], i) => (
         <div key={label} className="rounded-2xl bg-white/10 py-5 text-center ring-1 ring-white/15 backdrop-blur-sm">
-          <p className="font-serif text-4xl text-white tabular-nums">{parts ? parts[i].value : "–"}</p>
+          <p className="overflow-hidden font-serif text-4xl text-white tabular-nums">
+            {/* Re-keyed on change, so only the unit that ticked slides in. */}
+            <span key={parts ? parts[i].value : "–"} className="tick">
+              {parts ? parts[i].value : "–"}
+            </span>
+          </p>
           <p className="mt-1 text-xs tracking-[0.3em] text-white/75 uppercase">{label}</p>
         </div>
       ))}

@@ -27,8 +27,10 @@ export function Calendar({ view: { info }, section }: { view: InviteView; sectio
             <span key={i} className="relative flex h-9 items-center justify-center font-serif text-lg">
               {n === day ? (
                 <>
-                  <svg viewBox="0 0 40 36" className="absolute size-11 text-accent" aria-hidden>
+                  <svg viewBox="0 0 40 36" className="heart-beat absolute size-11 text-accent" aria-hidden>
                     <path
+                      className="heart-draw"
+                      pathLength={1}
                       d="M20 33S3 23 3 12.5C3 7 7.2 3 12 3c3.4 0 6 1.8 8 4.6C22 4.8 24.6 3 28 3c4.8 0 9 4 9 9.5C37 23 20 33 20 33Z"
                       fill="none"
                       stroke="currentColor"

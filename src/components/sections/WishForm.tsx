@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { sendWish, type WishState } from "@/app/actions";
+import { HeartBurst } from "../HeartBurst";
 import { SendIcon } from "../icons";
 
 const field =
@@ -22,14 +23,18 @@ export function WishForm() {
       <input name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
       {state?.error && <p className="text-sm text-red-700">{state.error}</p>}
       {state?.ok && <p className="text-sm text-accent-dark">Cảm ơn bạn đã gửi lời chúc! 💛</p>}
-      <button
-        type="submit"
-        disabled={pending}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-medium tracking-wide text-white shadow-md transition hover:bg-accent-dark disabled:opacity-60"
-      >
-        <SendIcon width={16} height={16} />
-        {pending ? "ĐANG GỬI…" : "GỬI LỜI CHÚC"}
-      </button>
+      <div className="relative">
+        <button
+          type="submit"
+          disabled={pending}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-medium tracking-wide text-white shadow-md transition hover:bg-accent-dark disabled:opacity-60"
+        >
+          <SendIcon width={16} height={16} />
+          {pending ? "ĐANG GỬI…" : "GỬI LỜI CHÚC"}
+        </button>
+        {/* A new key per sent wish replays the burst. */}
+        {state?.ok && <HeartBurst key={state.at} />}
+      </div>
     </form>
   );
 }
