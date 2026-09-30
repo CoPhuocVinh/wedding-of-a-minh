@@ -7,11 +7,7 @@ import type { Storage } from "./types";
 // Images: lh3.googleusercontent.com/d/<id>. Audio: drive.google.com/uc?export=download&id=<id>.
 const DRIVE_ID = /^https:\/\/(?:lh3\.googleusercontent\.com\/d\/|drive\.google\.com\/uc\?export=download&id=)([\w-]+)/;
 
-async function call<T>(action: string, payload?: unknown): Promise<T> {
-  const url = process.env.APPS_SCRIPT_URL;
-  const secret = process.env.APPS_SCRIPT_SECRET;
-  if (!url || !secret) throw new Error("APPS_SCRIPT_URL / APPS_SCRIPT_SECRET chưa được cấu hình");
-
+async function callOnce<T>(url: string, secret: string, action: string, payload?: unknown): Promise<T> {
   // Apps Script answers with a redirect to the result; fetch follows it.
   const res = await fetch(url, {
     method: "POST",
@@ -25,10 +21,33 @@ async function call<T>(action: string, payload?: unknown): Promise<T> {
   try {
     body = JSON.parse(text);
   } catch {
-    throw new Error(`Apps Script trả về không phải JSON (HTTP ${res.status}). Kiểm tra lại URL triển khai.`);
+    throw new Transient(`Apps Script trả về không phải JSON (HTTP ${res.status}). Kiểm tra lại URL triển khai.`);
   }
   if (!body.ok) throw new Error(`Apps Script: ${body.error}`);
   return body.data as T;
+}
+
+/** Google hiccups (HTML error pages, dropped connections) worth retrying. */
+class Transient extends Error {}
+
+// Every action except uploads is safe to repeat (reads, upserts by id, deletes).
+const RETRY_DELAYS = [400, 1200];
+
+async function call<T>(action: string, payload?: unknown): Promise<T> {
+  const url = process.env.APPS_SCRIPT_URL;
+  const secret = process.env.APPS_SCRIPT_SECRET;
+  if (!url || !secret) throw new Error("APPS_SCRIPT_URL / APPS_SCRIPT_SECRET chưa được cấu hình");
+
+  const retries = action === "uploadFile" ? [] : RETRY_DELAYS;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await callOnce<T>(url, secret, action, payload);
+    } catch (e) {
+      const transient = e instanceof Transient || (e instanceof TypeError && e.message === "fetch failed");
+      if (!transient || attempt >= retries.length) throw e;
+      await new Promise((r) => setTimeout(r, retries[attempt]));
+    }
+  }
 }
 
 export const appsScriptDriver: Storage = {

@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 // Vector pieces of the envelope card: paper textures, twine and a dried
 // baby's-breath sprig. All CSS/SVG so they stay sharp at any size.
 
@@ -105,9 +107,9 @@ function buildSprig() {
 
 const SPRIG = buildSprig();
 
-export function Sprig({ className }: { className?: string }) {
+export function Sprig({ className, style }: { className?: string; style?: CSSProperties }) {
   return (
-    <svg viewBox="0 0 160 200" className={className} aria-hidden>
+    <svg viewBox="0 0 160 200" className={className} style={style} aria-hidden>
       <defs>
         <radialGradient id="card-petal" cx="35%" cy="30%" r="80%">
           <stop offset="0" stopColor="#fffefb" />

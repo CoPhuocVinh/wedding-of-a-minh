@@ -18,6 +18,8 @@
 
 html {
   scroll-behavior: smooth;
+  /* Pulling down at the top closes the card; don't let it reload the page. */
+  overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -64,6 +66,25 @@ body {
   }
   50% {
     transform: translateY(-6px);
+  }
+}
+
+@keyframes seal-shake {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20% {
+    transform: rotate(-4deg) scale(1.02);
+  }
+  45% {
+    transform: rotate(3.5deg) scale(1.02);
+  }
+  70% {
+    transform: rotate(-2deg);
+  }
+  85% {
+    transform: rotate(1deg);
   }
 }
 

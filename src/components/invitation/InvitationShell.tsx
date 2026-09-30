@@ -3,28 +3,72 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { VIDEO_EVENT } from "@/lib/video";
 import { CloseIcon, MenuIcon } from "../icons";
-import { Envelope } from "./Envelope";
+import { Envelope, type CardInfo } from "./Envelope";
 
 type NavItem = { id: string; label: string };
 
 type Props = {
   children: ReactNode;
-  envelope: Omit<Parameters<typeof Envelope>[0], "onOpen">;
+  envelope: CardInfo;
   monogram: string;
   nav: NavItem[];
   musicUrl: string;
   showWishButton: boolean;
 };
 
+// How long the page must rest at the top before pulling further closes the
+// card, so the momentum of a fast scroll up doesn't close it by accident.
+const SETTLE_MS = 600;
+const WHEEL_PULL = 150;
+const TOUCH_PULL = 80;
+
 export function InvitationShell({ children, envelope, monogram, nav, musicUrl, showWishButton }: Props) {
-  const [envelopeGone, setEnvelopeGone] = useState(false);
+  // "intro": closed card on arrival. "closing": the card folding back shut.
+  const [card, setCard] = useState<"intro" | "closing" | null>("intro");
   const [playing, setPlaying] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const audio = useRef<HTMLAudioElement>(null);
+  const firstOpen = useRef(true);
 
   useEffect(() => {
-    document.body.style.overflow = envelopeGone && !menuOpen ? "" : "hidden";
-  }, [envelopeGone, menuOpen]);
+    document.body.style.overflow = card || menuOpen ? "hidden" : "";
+  }, [card, menuOpen]);
+
+  // Scrolling up past the top of the page closes the card again.
+  useEffect(() => {
+    if (card) return;
+    let topSince = window.scrollY <= 0 ? Date.now() : 0;
+    let pull = 0;
+    let touchY: number | null = null;
+    const settled = () => topSince > 0 && Date.now() - topSince > SETTLE_MS;
+
+    const onScroll = () => {
+      if (window.scrollY > 0) topSince = pull = 0;
+      else if (!topSince) topSince = Date.now();
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY >= 0 || !settled()) return void (pull = 0);
+      pull -= e.deltaY;
+      if (pull > WHEEL_PULL) setCard("closing");
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      touchY = settled() ? e.touches[0].clientY : null;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (touchY !== null && e.touches[0].clientY - touchY > TOUCH_PULL) setCard("closing");
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("wheel", onWheel, { passive: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+    };
+  }, [card]);
 
   // Step aside while an album video plays; resume only if we were playing.
   useEffect(() => {
@@ -45,10 +89,17 @@ export function InvitationShell({ children, envelope, monogram, nav, musicUrl, s
     return () => window.removeEventListener(VIDEO_EVENT, onVideo);
   }, []);
 
-  function handleOpen() {
+  function onStart() {
+    // Music starts on the first opening only; later a guest may have muted it.
+    if (!firstOpen.current) return;
+    firstOpen.current = false;
     // Browsers only allow audio after a user gesture, which this tap is.
     audio.current?.play().then(() => setPlaying(true), () => {});
-    setTimeout(() => setEnvelopeGone(true), 1600);
+  }
+
+  function closeCard() {
+    window.scrollTo({ top: 0, behavior: "instant" });
+    setCard("closing");
   }
 
   function toggleMusic() {
@@ -81,6 +132,16 @@ export function InvitationShell({ children, envelope, monogram, nav, musicUrl, s
             </button>
           </div>
           <nav className="mt-8 flex flex-col items-center gap-6">
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                closeCard();
+              }}
+              className="font-serif text-2xl text-ink hover:text-accent"
+            >
+              Thiệp mời
+            </button>
             {nav.map((item) => (
               <a
                 key={item.id}
@@ -129,7 +190,7 @@ export function InvitationShell({ children, envelope, monogram, nav, musicUrl, s
         )}
       </div>
 
-      {!envelopeGone && <Envelope {...envelope} onOpen={handleOpen} />}
+      {card && <Envelope key={card} {...envelope} closing={card === "closing"} onStart={onStart} onDone={() => setCard(null)} />}
     </>
   );
 }

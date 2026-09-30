@@ -1,53 +1,101 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import seal from "@/assets/seal.png";
 import { LINEN, PAPER, Sprig, Twine } from "./card-art";
 
-type Props = {
+export type CardInfo = {
   /** Couple names, inviting family's child first */
   names: [string, string];
   /** YYYY-MM-DD */
   date: string;
   inviteLine: string;
   guest: string;
-  onOpen: () => void;
 };
 
-const EASE = "ease-[cubic-bezier(.7,0,.2,1)]";
+type Props = CardInfo & {
+  /** Mount open and play the opening backwards (guest scrolled back to the top). */
+  closing?: boolean;
+  /** Called as the seal cracks; on a real tap, so music may start here. */
+  onStart: () => void;
+  /** Called once the card has fully slid away. */
+  onDone: () => void;
+};
+
+const EASE = "cubic-bezier(.7,0,.2,1)";
 /** Where the linen panel meets the white panel, as % of the card width. */
 const SEAM = 64;
 
-// Two-panel card (linen + white paper) tied with twine and a wax seal.
-// Everything is sized in container units, so the card scales like a picture
-// and keeps its layout on any screen. Tapping drops the seal, then the two
-// panels slide apart.
-export function Envelope({ names, date, inviteLine, guest, onOpen }: Props) {
-  const [opening, setOpening] = useState(false);
+// Opening: the seal cracks along a zig-zag -> the halves part -> each half
+// rides away with its panel, and the twine splits with them.
+// Closing runs the same steps backwards.
+const CRACK_MS = 380;
+const SPLIT_MS = 320;
+const SLIDE_MS = 1200;
+
+/** Zig-zag crack through the seal, in % of the seal image box (top to bottom). */
+const CRACK: [number, number][] = [
+  [50, 0], [46, 11], [54, 22], [47, 34], [55, 46], [45, 58], [53, 70], [46, 82], [52, 92], [49, 100],
+];
+const pts = (list: [number, number][]) => list.map(([x, y]) => `${x}% ${y}%`).join(", ");
+const LEFT_PIECE = `polygon(0 0, ${pts(CRACK)}, 0 100%)`;
+const RIGHT_PIECE = `polygon(${pts(CRACK)}, 100% 100%, 100% 0)`;
+
+type Phase = "idle" | "crack" | "split" | "open";
+/** A phase plus how long the move into it takes, so both directions animate right. */
+type Step = { phase: Phase; ms: number };
+
+export function Envelope({ names, date, inviteLine, guest, closing = false, onStart, onDone }: Props) {
+  const [{ phase, ms }, setStep] = useState<Step>({ phase: closing ? "open" : "idle", ms: 0 });
   const [y, m, d] = date.split("-");
 
   function open() {
-    if (opening) return;
-    setOpening(true);
-    onOpen();
+    if (phase !== "idle") return;
+    setStep({ phase: "crack", ms: CRACK_MS });
+    onStart();
+    setTimeout(() => setStep({ phase: "split", ms: SPLIT_MS }), CRACK_MS);
+    setTimeout(() => setStep({ phase: "open", ms: SLIDE_MS }), CRACK_MS + SPLIT_MS);
+    setTimeout(onDone, CRACK_MS + SPLIT_MS + SLIDE_MS + 100);
   }
 
-  const panel = `absolute inset-y-0 transition-transform duration-[1200ms] ${EASE} delay-[350ms]`;
-  const gone = opening ? "opacity-0" : "";
+  // Closing: panels slide back in, the halves meet, then the crack heals.
+  useEffect(() => {
+    if (!closing) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const frame = requestAnimationFrame(() => {
+      setStep({ phase: "split", ms: SLIDE_MS });
+      timers.push(setTimeout(() => setStep({ phase: "crack", ms: SPLIT_MS }), SLIDE_MS));
+      timers.push(setTimeout(() => setStep({ phase: "idle", ms: CRACK_MS }), SLIDE_MS + SPLIT_MS));
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      timers.forEach(clearTimeout);
+    };
+  }, [closing]);
+
+  const started = phase !== "idle";
+  const parted = phase === "split" || phase === "open";
+  const sliding = phase === "open";
+
+  /** Moves something with a panel: left side travels SEAM cqw, right side the rest. */
+  const slide = (side: "left" | "right", extra = ""): CSSProperties => ({
+    transform: `${sliding ? `translateX(${side === "left" ? -SEAM : 100 - SEAM}cqw)` : ""} ${extra}`.trim() || undefined,
+    transition: `transform ${ms}ms ${ms === SLIDE_MS ? EASE : "ease-out"}`,
+  });
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-label="Thiệp mời">
-      <div className={`absolute inset-0 bg-[#ddd6ca] transition-opacity duration-700 delay-[500ms] ${gone}`} />
+      <div className={`absolute inset-0 bg-[#ddd6ca] transition-opacity duration-700 ${sliding ? "opacity-0 delay-200" : ""}`} />
 
       <button
         type="button"
         onClick={open}
         aria-label="Mở thiệp"
-        className={`relative mx-auto block h-full w-full max-w-[min(480px,56svh)] text-left [container-type:size] ${opening ? "pointer-events-none" : "animate-[fade-in_.8s_ease-out]"}`}
+        className={`relative mx-auto block h-full w-full max-w-[min(480px,56svh)] text-left [container-type:size] ${started ? "pointer-events-none" : closing ? "" : "animate-[fade-in_.8s_ease-out]"}`}
       >
         {/* Right: white paper, carrying the date */}
-        <div className={`${panel} right-0 ${opening ? "translate-x-full" : ""}`} style={{ ...PAPER, width: `${100 - SEAM}%` }}>
+        <div className="absolute inset-y-0 right-0" style={{ ...PAPER, width: `${100 - SEAM}%`, ...slide("right") }}>
           <p className="absolute top-[5.5%] right-[7cqw] text-center font-serif text-[12.5cqw] leading-[1.02] text-[#a8807f] lining-nums tabular-nums">
             {d}
             <br />
@@ -59,8 +107,8 @@ export function Envelope({ names, date, inviteLine, guest, onOpen }: Props) {
 
         {/* Left: linen, carrying names and the guest */}
         <div
-          className={`${panel} left-0 shadow-[2px_0_6px_-1px_rgba(70,50,30,.18)] ${opening ? "-translate-x-full" : ""}`}
-          style={{ ...LINEN, width: `${SEAM}%` }}
+          className="absolute inset-y-0 left-0 shadow-[2px_0_6px_-1px_rgba(70,50,30,.18)]"
+          style={{ ...LINEN, width: `${SEAM}%`, ...slide("left") }}
         >
           <p className="absolute top-[8.5%] left-[12cqw] font-script text-[8.6cqw] leading-[1.25] text-[#6e5040]">
             {names[0]}
@@ -73,34 +121,81 @@ export function Envelope({ names, date, inviteLine, guest, onOpen }: Props) {
           </div>
         </div>
 
-        <Twine
-          className={`absolute top-1/2 left-0 -translate-y-1/2 drop-shadow-[0_1.5px_1px_rgba(70,50,30,.22)] transition-opacity duration-300 ${gone}`}
-        />
+        {/* Twine, cut at the seam so each piece leaves with its panel */}
+        <div className="absolute top-1/2 left-0 -translate-y-1/2 overflow-hidden" style={{ width: `${SEAM}%`, ...slide("left") }}>
+          <Twine className="drop-shadow-[0_1.5px_1px_rgba(70,50,30,.22)]" />
+        </div>
+        <div className="absolute top-1/2 right-0 -translate-y-1/2 overflow-hidden" style={{ width: `${100 - SEAM}%`, ...slide("right") }}>
+          <Twine className="drop-shadow-[0_1.5px_1px_rgba(70,50,30,.22)]" />
+        </div>
 
         {/* Seal cluster, centred on the seam and the twine */}
-        <div
-          className={`absolute top-1/2 w-[27cqw] -translate-x-1/2 -translate-y-1/2 transition-[opacity,transform] duration-500 ${opening ? "scale-110 opacity-0" : ""}`}
-          style={{ left: `${SEAM}%` }}
-        >
-          <Sprig className="absolute bottom-[30%] left-1/2 w-[160%] -translate-x-[40%] rotate-[4deg] drop-shadow-[0_1.5px_1.2px_rgba(70,50,30,.28)]" />
-          <Image
-            src={seal}
-            alt=""
-            priority
-            sizes="140px"
-            className="relative h-auto w-full contrast-[1.06] sepia-[.14] drop-shadow-[0_3px_4px_rgba(70,50,30,.3)]"
+        <div className="absolute top-1/2 w-[27cqw] -translate-x-1/2 -translate-y-1/2" style={{ left: `${SEAM}%` }}>
+          <Sprig
+            className="absolute bottom-[30%] left-1/2 w-[160%] -translate-x-[40%] rotate-[4deg] drop-shadow-[0_1.5px_1.2px_rgba(70,50,30,.28)] transition-[transform,opacity] duration-700 ease-in"
+            style={parted ? { transform: "translateY(22%) rotate(9deg)", opacity: 0 } : undefined}
           />
-          <SealHint />
+
+          <div className={phase === "crack" ? "animate-[seal-shake_.32s_ease-in-out]" : ""}>
+            {/* Whole until tapped: two clipped halves leave a hairline where they meet. */}
+            <SealPiece clip={started ? LEFT_PIECE : undefined} style={slide("left", parted ? "translate(-5%, 2%) rotate(-7deg)" : "")} />
+            {started && (
+              <SealPiece clip={RIGHT_PIECE} className="absolute inset-0" style={slide("right", parted ? "translate(5%, 3%) rotate(8deg)" : "")} />
+            )}
+
+            {/* The crack drawing itself, clipped to the wax disc */}
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden className={`absolute inset-0 size-full transition-opacity duration-150 ${parted ? "opacity-0" : ""}`}>
+              <defs>
+                <clipPath id="seal-disc">
+                  <circle cx="50" cy="50" r="46" />
+                </clipPath>
+              </defs>
+              <g clipPath="url(#seal-disc)" fill="none" strokeLinejoin="bevel" pathLength={1}>
+                {[
+                  { stroke: "rgba(255,248,230,.7)", width: 2.2, dx: 0.6 },
+                  { stroke: "rgba(80,60,35,.75)", width: 1.4, dx: 0 },
+                ].map((l) => (
+                  <polyline
+                    key={l.stroke}
+                    points={CRACK.map(([x, y]) => `${x + l.dx},${y}`).join(" ")}
+                    stroke={l.stroke}
+                    strokeWidth={l.width}
+                    vectorEffect="non-scaling-stroke"
+                    pathLength={1}
+                    strokeDasharray="1"
+                    strokeDashoffset={started ? 0 : 1}
+                    style={{ transition: `stroke-dashoffset ${CRACK_MS - 60}ms ease-in` }}
+                  />
+                ))}
+              </g>
+            </svg>
+          </div>
+
+          <SealHint hidden={started} />
         </div>
       </button>
     </div>
   );
 }
 
-/** Curved "Chạm để mở thiệp" + tap hand, in a square twice the seal's size. */
-function SealHint() {
+/** One half of the seal: the full image clipped along the crack. */
+function SealPiece({ clip, className = "relative", style }: { clip?: string; className?: string; style: CSSProperties }) {
   return (
-    <svg viewBox="0 0 200 200" aria-hidden className="absolute -inset-1/2 h-[200%] w-[200%] overflow-visible">
+    // The shadow sits on the wrapper so it follows the clipped outline.
+    <div className={`${className} drop-shadow-[0_3px_4px_rgba(70,50,30,.3)]`} style={style}>
+      <Image src={seal} alt="" priority sizes="140px" className="h-auto w-full contrast-[1.06] sepia-[.14]" style={{ clipPath: clip }} />
+    </div>
+  );
+}
+
+/** Curved "Chạm để mở thiệp" + tap hand, in a square twice the seal's size. */
+function SealHint({ hidden }: { hidden: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 200 200"
+      aria-hidden
+      className={`pointer-events-none absolute -inset-1/2 h-[200%] w-[200%] overflow-visible transition-opacity duration-200 ${hidden ? "opacity-0" : ""}`}
+    >
       <defs>
         <path id="seal-hint" d="M40 130 A64 64 0 0 0 160 126" />
       </defs>
