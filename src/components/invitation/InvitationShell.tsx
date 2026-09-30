@@ -5,7 +5,7 @@ import { VIDEO_EVENT } from "@/lib/video";
 import { LightboxProvider } from "../Lightbox";
 import { CloseIcon, MenuIcon } from "../icons";
 import { usePresence } from "../usePresence";
-import { Envelope, type CardInfo } from "./Envelope";
+import { Envelope, type CardInfo, type Entrance } from "./Envelope";
 
 type NavItem = { id: string; label: string };
 
@@ -18,15 +18,15 @@ type Props = {
   showWishButton: boolean;
 };
 
-// How long the page must rest at the top before pulling further closes the
-// card, so the momentum of a fast scroll up doesn't close it by accident.
+// How long the page must rest at the top (or bottom) before pulling further
+// brings the card back, so the momentum of a fast scroll doesn't do it by accident.
 const SETTLE_MS = 600;
 const WHEEL_PULL = 150;
 const TOUCH_PULL = 80;
 
 export function InvitationShell({ children, envelope, monogram, nav, musicUrl, showWishButton }: Props) {
-  // "intro": closed card on arrival. "closing": the card folding back shut.
-  const [card, setCard] = useState<"intro" | "closing" | null>("intro");
+  // The closed card covering the page, named by how it arrived; null once opened.
+  const [card, setCard] = useState<Entrance | null>("fade");
   // True from the tap that opens the card until it is shut again; starts the
   // hero's entrance (see `data-revealed` in globals.css).
   const [revealed, setRevealed] = useState(false);
@@ -40,28 +40,44 @@ export function InvitationShell({ children, envelope, monogram, nav, musicUrl, s
     document.body.style.overflow = card || menuOpen ? "hidden" : "";
   }, [card, menuOpen]);
 
-  // Scrolling up past the top of the page closes the card again.
+  // Scrolling past either end of the page brings the card back: past the top
+  // it folds shut; past the bottom the page rolls up like a scroll (a hidden
+  // ending for guests who read all the way down).
   useEffect(() => {
     if (card) return;
-    let topSince = window.scrollY <= 0 ? Date.now() : 0;
+    const edgeNow = () => {
+      if (window.scrollY <= 0) return "top";
+      const end = document.documentElement.scrollHeight - window.innerHeight;
+      return window.scrollY >= end - 2 ? "bottom" : null;
+    };
+    let edge = edgeNow();
+    let since = edge ? Date.now() : 0;
     let pull = 0;
     let touchY: number | null = null;
-    const settled = () => topSince > 0 && Date.now() - topSince > SETTLE_MS;
+    const settled = () => edge !== null && Date.now() - since > SETTLE_MS;
+    const bring = () => setCard(edge === "top" ? "fold" : "roll");
 
     const onScroll = () => {
-      if (window.scrollY > 0) topSince = pull = 0;
-      else if (!topSince) topSince = Date.now();
+      const now = edgeNow();
+      if (now === edge) return;
+      edge = now;
+      since = Date.now();
+      pull = 0;
     };
     const onWheel = (e: WheelEvent) => {
-      if (e.deltaY >= 0 || !settled()) return void (pull = 0);
-      pull -= e.deltaY;
-      if (pull > WHEEL_PULL) setCard("closing");
+      // Only scrolling further out of the page counts: up at the top, down at the bottom.
+      const outward = edge === "top" ? -e.deltaY : e.deltaY;
+      if (outward <= 0 || !settled()) return void (pull = 0);
+      pull += outward;
+      if (pull > WHEEL_PULL) bring();
     };
     const onTouchStart = (e: TouchEvent) => {
       touchY = settled() ? e.touches[0].clientY : null;
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (touchY !== null && e.touches[0].clientY - touchY > TOUCH_PULL) setCard("closing");
+      if (touchY === null) return;
+      const dy = e.touches[0].clientY - touchY;
+      if ((edge === "top" ? dy : -dy) > TOUCH_PULL) bring();
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -106,7 +122,13 @@ export function InvitationShell({ children, envelope, monogram, nav, musicUrl, s
 
   function closeCard() {
     window.scrollTo({ top: 0, behavior: "instant" });
-    setCard("closing");
+    setCard("fold");
+  }
+
+  // The card now covers the page: rewind it for the next opening.
+  function onClosed() {
+    window.scrollTo({ top: 0, behavior: "instant" });
+    setRevealed(false);
   }
 
   function toggleMusic() {
@@ -205,10 +227,10 @@ export function InvitationShell({ children, envelope, monogram, nav, musicUrl, s
         <Envelope
           key={card}
           {...envelope}
-          closing={card === "closing"}
+          entrance={card}
           onStart={onStart}
           onDone={() => setCard(null)}
-          onClosed={() => setRevealed(false)}
+          onClosed={onClosed}
         />
       )}
     </LightboxProvider>

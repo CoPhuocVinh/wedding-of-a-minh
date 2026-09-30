@@ -14,14 +14,22 @@ export type CardInfo = {
   guest: string;
 };
 
+/**
+ * How the closed card arrives:
+ * - "fade": on first load.
+ * - "fold": mounted open, the opening plays backwards (guest scrolled back past the top).
+ * - "roll": the page rolls up like a scroll from bottom to top, uncovering the
+ *   card (guest scrolled past the end of the page).
+ */
+export type Entrance = "fade" | "fold" | "roll";
+
 type Props = CardInfo & {
-  /** Mount open and play the opening backwards (guest scrolled back to the top). */
-  closing?: boolean;
+  entrance?: Entrance;
   /** Called as the seal cracks; on a real tap, so music may start here. */
   onStart: () => void;
   /** Called once the card has fully slid away. */
   onDone: () => void;
-  /** Called once a closing card is shut again. */
+  /** Called once a folding or rolling card is closed and covers the page. */
   onClosed?: () => void;
 };
 
@@ -35,6 +43,8 @@ const SEAM = 64;
 const CRACK_MS = 380;
 const SPLIT_MS = 320;
 const SLIDE_MS = 1200;
+/** Keep in step with `roll-reveal` / `roller-up` in globals.css. */
+const ROLL_MS = 1600;
 
 /** Zig-zag crack through the seal, in % of the seal image box (top to bottom). */
 const CRACK: [number, number][] = [
@@ -50,12 +60,15 @@ type Step = { phase: Phase; ms: number };
 
 const calm = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export function Envelope({ names, date, inviteLine, guest, closing = false, onStart, onDone, onClosed }: Props) {
+export function Envelope({ names, date, inviteLine, guest, entrance = "fade", onStart, onDone, onClosed }: Props) {
+  const closing = entrance === "fold";
   const [{ phase, ms }, setStep] = useState<Step>({ phase: closing ? "open" : "idle", ms: 0 });
+  // A rolling card can't be tapped until the scroll has cleared the screen.
+  const [rolling, setRolling] = useState(entrance === "roll");
   const [y, m, d] = date.split("-");
 
   function open() {
-    if (phase !== "idle") return;
+    if (phase !== "idle" || rolling) return;
     onStart();
     // Reduced motion: no cracking or sliding, the card just gives way.
     if (calm()) {
@@ -68,8 +81,22 @@ export function Envelope({ names, date, inviteLine, guest, closing = false, onSt
     setTimeout(onDone, CRACK_MS + SPLIT_MS + SLIDE_MS + 100);
   }
 
-  // Closing: panels slide back in, the halves meet, then the crack heals.
   const closed = useEffectEvent(() => onClosed?.());
+
+  // Rolling: CSS does the motion; this only marks the moment it is finished.
+  useEffect(() => {
+    if (entrance !== "roll") return;
+    const t = setTimeout(
+      () => {
+        setRolling(false);
+        closed();
+      },
+      calm() ? 0 : ROLL_MS,
+    );
+    return () => clearTimeout(t);
+  }, [entrance]);
+
+  // Folding: panels slide back in, the halves meet, then the crack heals.
   useEffect(() => {
     if (!closing) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -104,106 +131,110 @@ export function Envelope({ names, date, inviteLine, guest, closing = false, onSt
   });
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-label="Thiệp mời">
-      <div className={`absolute inset-0 bg-[#ddd6ca] transition-opacity duration-700 ${sliding ? "opacity-0 delay-200" : ""}`} />
+    <>
+      <div className={`fixed inset-0 z-50 overflow-hidden ${entrance === "roll" ? "roll-reveal" : ""}`} role="dialog" aria-label="Thiệp mời">
+        <div className={`absolute inset-0 bg-[#ddd6ca] transition-opacity duration-700 ${sliding ? "opacity-0 delay-200" : ""}`} />
 
-      <button
-        type="button"
-        onClick={open}
-        aria-label="Mở thiệp"
-        className={`relative mx-auto block h-full w-full max-w-[min(480px,56svh)] text-left [container-type:size] ${started ? "pointer-events-none" : closing ? "" : "animate-[fade-in_.8s_ease-out]"}`}
-      >
-        {/* Right: white paper, carrying the date */}
-        <div className="absolute inset-y-0 right-0" style={{ ...PAPER, width: `${100 - SEAM}%`, ...slide("right") }}>
-          <p className="absolute top-[5.5%] right-[7cqw] text-center font-serif text-[12.5cqw] leading-[1.02] text-[#a8807f] lining-nums tabular-nums">
-            {d}
-            <br />
-            {m}
-            <br />
-            {y.slice(2)}
-          </p>
-        </div>
-
-        {/* Left: linen, carrying names and the guest */}
-        <div
-          className="absolute inset-y-0 left-0 shadow-[2px_0_6px_-1px_rgba(70,50,30,.18)]"
-          style={{ ...LINEN, width: `${SEAM}%`, ...slide("left") }}
+        <button
+          type="button"
+          onClick={open}
+          aria-label="Mở thiệp"
+          className={`relative mx-auto block h-full w-full max-w-[min(480px,56svh)] text-left [container-type:size] ${started || rolling ? "pointer-events-none" : entrance === "fade" ? "animate-[fade-in_.8s_ease-out]" : ""}`}
         >
-          <p className="absolute top-[8.5%] left-[12cqw] font-script text-[8.6cqw] leading-[1.25] text-[#6e5040]">
-            {names[0]}
-            <span className="block pl-[9cqw] text-[6.4cqw] leading-[1.1]">&amp;</span>
-            {names[1]}
-          </p>
-          <div className="absolute inset-x-0 top-[72%] text-center">
-            <p className="text-[2.75cqw] tracking-[0.32em] text-[#8a7462] uppercase">{inviteLine}</p>
-            <p className="mt-[2.4cqh] text-[5.6cqw] font-normal text-[#54443a]">{guest}</p>
-          </div>
-        </div>
-
-        {/* Twine, cut at the seam so each piece leaves with its panel */}
-        <div className="absolute top-1/2 left-0 -translate-y-1/2 overflow-hidden" style={{ width: `${SEAM}%`, ...slide("left") }}>
-          <Twine className="drop-shadow-[0_1.5px_1px_rgba(70,50,30,.22)]" />
-        </div>
-        <div className="absolute top-1/2 right-0 -translate-y-1/2 overflow-hidden" style={{ width: `${100 - SEAM}%`, ...slide("right") }}>
-          <Twine className="drop-shadow-[0_1.5px_1px_rgba(70,50,30,.22)]" />
-        </div>
-
-        {/* Seal cluster, centred on the seam and the twine */}
-        <div className="absolute top-1/2 w-[27cqw] -translate-x-1/2 -translate-y-1/2" style={{ left: `${SEAM}%` }}>
-          <Sprig
-            className="absolute bottom-[30%] left-1/2 w-[160%] -translate-x-[40%] rotate-[4deg] drop-shadow-[0_1.5px_1.2px_rgba(70,50,30,.28)] transition-[transform,opacity] duration-700 ease-in"
-            style={parted ? { transform: "translateY(22%) rotate(9deg)", opacity: 0 } : undefined}
-          />
-
-          <div className={phase === "crack" ? "animate-[seal-shake_.32s_ease-in-out]" : ""}>
-            {/* Whole until tapped: two clipped halves leave a hairline where they meet. */}
-            <SealPiece clip={started ? LEFT_PIECE : undefined} style={slide("left", parted ? "translate(-5%, 2%) rotate(-7deg)" : "")} />
-            {started && (
-              <SealPiece clip={RIGHT_PIECE} className="absolute inset-0" style={slide("right", parted ? "translate(5%, 3%) rotate(8deg)" : "")} />
-            )}
-
-            {/* The crack drawing itself, clipped to the wax disc. Fully transparent
-                until tapped, so no sliver of it can show on the intact seal; when a
-                closing card heals, it fades only after the line has been erased. */}
-            <svg
-              viewBox="0 0 100 100"
-              aria-hidden
-              className="absolute inset-0 size-full"
-              style={{
-                opacity: phase === "crack" ? 1 : 0,
-                transition: `opacity 150ms ${started ? "0ms" : `${CRACK_MS}ms`}`,
-              }}
-            >
-              <defs>
-                <clipPath id="seal-disc">
-                  <circle cx="50" cy="50" r="46" />
-                </clipPath>
-              </defs>
-              <g clipPath="url(#seal-disc)" fill="none" strokeLinejoin="bevel">
-                {[
-                  { stroke: "rgba(255,248,230,.7)", width: 2.2, dx: 0.6 },
-                  { stroke: "rgba(80,60,35,.75)", width: 1.4, dx: 0 },
-                ].map((l) => (
-                  <polyline
-                    key={l.stroke}
-                    points={CRACK.map(([x, y]) => `${x + l.dx},${y}`).join(" ")}
-                    stroke={l.stroke}
-                    strokeWidth={l.width}
-                    // pathLength makes "1" the whole line, so the dash draws it from 0 to 100%.
-                    pathLength={1}
-                    strokeDasharray="1"
-                    strokeDashoffset={started ? 0 : 1}
-                    style={{ transition: `stroke-dashoffset ${CRACK_MS - 60}ms ease-in` }}
-                  />
-                ))}
-              </g>
-            </svg>
+          {/* Right: white paper, carrying the date */}
+          <div className="absolute inset-y-0 right-0" style={{ ...PAPER, width: `${100 - SEAM}%`, ...slide("right") }}>
+            <p className="absolute top-[5.5%] right-[7cqw] text-center font-serif text-[12.5cqw] leading-[1.02] text-[#a8807f] lining-nums tabular-nums">
+              {d}
+              <br />
+              {m}
+              <br />
+              {y.slice(2)}
+            </p>
           </div>
 
-          <SealHint hidden={started} />
-        </div>
-      </button>
-    </div>
+          {/* Left: linen, carrying names and the guest */}
+          <div
+            className="absolute inset-y-0 left-0 shadow-[2px_0_6px_-1px_rgba(70,50,30,.18)]"
+            style={{ ...LINEN, width: `${SEAM}%`, ...slide("left") }}
+          >
+            <p className="absolute top-[8.5%] left-[12cqw] font-script text-[8.6cqw] leading-[1.25] text-[#6e5040]">
+              {names[0]}
+              <span className="block pl-[9cqw] text-[6.4cqw] leading-[1.1]">&amp;</span>
+              {names[1]}
+            </p>
+            <div className="absolute inset-x-0 top-[72%] text-center">
+              <p className="text-[2.75cqw] tracking-[0.32em] text-[#8a7462] uppercase">{inviteLine}</p>
+              <p className="mt-[2.4cqh] text-[5.6cqw] font-normal text-[#54443a]">{guest}</p>
+            </div>
+          </div>
+
+          {/* Twine, cut at the seam so each piece leaves with its panel */}
+          <div className="absolute top-1/2 left-0 -translate-y-1/2 overflow-hidden" style={{ width: `${SEAM}%`, ...slide("left") }}>
+            <Twine className="drop-shadow-[0_1.5px_1px_rgba(70,50,30,.22)]" />
+          </div>
+          <div className="absolute top-1/2 right-0 -translate-y-1/2 overflow-hidden" style={{ width: `${100 - SEAM}%`, ...slide("right") }}>
+            <Twine className="drop-shadow-[0_1.5px_1px_rgba(70,50,30,.22)]" />
+          </div>
+
+          {/* Seal cluster, centred on the seam and the twine */}
+          <div className="absolute top-1/2 w-[27cqw] -translate-x-1/2 -translate-y-1/2" style={{ left: `${SEAM}%` }}>
+            <Sprig
+              className="absolute bottom-[30%] left-1/2 w-[160%] -translate-x-[40%] rotate-[4deg] drop-shadow-[0_1.5px_1.2px_rgba(70,50,30,.28)] transition-[transform,opacity] duration-700 ease-in"
+              style={parted ? { transform: "translateY(22%) rotate(9deg)", opacity: 0 } : undefined}
+            />
+
+            <div className={phase === "crack" ? "animate-[seal-shake_.32s_ease-in-out]" : ""}>
+              {/* Whole until tapped: two clipped halves leave a hairline where they meet. */}
+              <SealPiece clip={started ? LEFT_PIECE : undefined} style={slide("left", parted ? "translate(-5%, 2%) rotate(-7deg)" : "")} />
+              {started && (
+                <SealPiece clip={RIGHT_PIECE} className="absolute inset-0" style={slide("right", parted ? "translate(5%, 3%) rotate(8deg)" : "")} />
+              )}
+
+              {/* The crack drawing itself, clipped to the wax disc. Fully transparent
+                  until tapped, so no sliver of it can show on the intact seal; when a
+                  closing card heals, it fades only after the line has been erased. */}
+              <svg
+                viewBox="0 0 100 100"
+                aria-hidden
+                className="absolute inset-0 size-full"
+                style={{
+                  opacity: phase === "crack" ? 1 : 0,
+                  transition: `opacity 150ms ${started ? "0ms" : `${CRACK_MS}ms`}`,
+                }}
+              >
+                <defs>
+                  <clipPath id="seal-disc">
+                    <circle cx="50" cy="50" r="46" />
+                  </clipPath>
+                </defs>
+                <g clipPath="url(#seal-disc)" fill="none" strokeLinejoin="bevel">
+                  {[
+                    { stroke: "rgba(255,248,230,.7)", width: 2.2, dx: 0.6 },
+                    { stroke: "rgba(80,60,35,.75)", width: 1.4, dx: 0 },
+                  ].map((l) => (
+                    <polyline
+                      key={l.stroke}
+                      points={CRACK.map(([x, y]) => `${x + l.dx},${y}`).join(" ")}
+                      stroke={l.stroke}
+                      strokeWidth={l.width}
+                      // pathLength makes "1" the whole line, so the dash draws it from 0 to 100%.
+                      pathLength={1}
+                      strokeDasharray="1"
+                      strokeDashoffset={started ? 0 : 1}
+                      style={{ transition: `stroke-dashoffset ${CRACK_MS - 60}ms ease-in` }}
+                    />
+                  ))}
+                </g>
+              </svg>
+            </div>
+
+            <SealHint hidden={started} />
+          </div>
+        </button>
+      </div>
+      {/* The rolled-up page, riding the edge of the reveal from bottom to top. */}
+      {rolling && <div className="roller" aria-hidden />}
+    </>
   );
 }
 

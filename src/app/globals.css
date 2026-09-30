@@ -144,6 +144,48 @@ body {
   animation: petal-sway calc(var(--t) / 3.5) ease-in-out infinite alternate;
 }
 
+/* ---------- Hidden ending: scrolling past the end rolls the page up like a
+   scroll, from bottom to top, uncovering the closed card (see Envelope) ---------- */
+.roll-reveal {
+  animation: roll-reveal 1.6s cubic-bezier(0.6, 0, 0.3, 1) both;
+}
+.roller {
+  position: fixed;
+  z-index: 51;
+  inset-inline: 0;
+  top: 0;
+  height: 38px;
+  pointer-events: none;
+  animation: roller-up 1.6s cubic-bezier(0.6, 0, 0.3, 1) both;
+  /* A cylinder of rolled paper: lit from above, dark underneath. */
+  background:
+    repeating-linear-gradient(90deg, rgb(120 95 60 / 0.05) 0 1px, transparent 1px 7px),
+    linear-gradient(180deg, #b3a58c 0%, #e9dfcb 16%, #fffaf0 38%, #efe5d2 58%, #cdbfa6 80%, #8f826b 100%);
+  box-shadow:
+    0 14px 22px -6px rgb(50 35 15 / 0.45),
+    0 -3px 8px -2px rgb(50 35 15 / 0.2),
+    inset 0 -1px 0 rgb(60 45 25 / 0.35);
+}
+/* Wooden knobs at both ends of the scroll's rod. */
+.roller::before,
+.roller::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 12px;
+  background: linear-gradient(180deg, #6b4a2e, #a87c50 40%, #5a3d25);
+  box-shadow: 0 2px 4px rgb(40 25 10 / 0.4);
+}
+.roller::before {
+  left: 0;
+  border-radius: 0 6px 6px 0;
+}
+.roller::after {
+  right: 0;
+  border-radius: 6px 0 0 6px;
+}
+
 /* ---------- Hearts: wish sent, gift box opened ---------- */
 .heart-fly {
   position: absolute;
@@ -365,6 +407,25 @@ body {
   }
 }
 
+@keyframes roll-reveal {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* The roller sits on the reveal's edge and leaves through the top. */
+@keyframes roller-up {
+  from {
+    transform: translateY(100svh);
+  }
+  to {
+    transform: translateY(-38px);
+  }
+}
+
 @keyframes parallax {
   from {
     transform: translateY(-9%);
@@ -381,7 +442,8 @@ body {
     transform: none;
   }
   .petal,
-  .heart-fly {
+  .heart-fly,
+  .roller {
     display: none;
   }
   .parallax {

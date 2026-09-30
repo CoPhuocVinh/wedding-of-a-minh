@@ -7,6 +7,11 @@ import type { Storage } from "./types";
 // Images: lh3.googleusercontent.com/d/<id>. Audio: drive.google.com/uc?export=download&id=<id>.
 const DRIVE_ID = /^https:\/\/(?:lh3\.googleusercontent\.com\/d\/|drive\.google\.com\/uc\?export=download&id=)([\w-]+)/;
 
+// Apps Script normally answers in 2-5s. When Google stalls, give up and retry
+// rather than hang for a minute. Uploads carry a file, so they get longer.
+const TIMEOUT_MS = 20_000;
+const UPLOAD_TIMEOUT_MS = 60_000;
+
 async function callOnce<T>(url: string, secret: string, action: string, payload?: unknown): Promise<T> {
   // Apps Script answers with a redirect to the result; fetch follows it.
   const res = await fetch(url, {
@@ -15,6 +20,7 @@ async function callOnce<T>(url: string, secret: string, action: string, payload?
     body: JSON.stringify({ secret, action, payload }),
     cache: "no-store",
     redirect: "follow",
+    signal: AbortSignal.timeout(action === "uploadFile" ? UPLOAD_TIMEOUT_MS : TIMEOUT_MS),
   });
   const text = await res.text();
   let body: { ok: boolean; data?: T; error?: string };
@@ -24,11 +30,20 @@ async function callOnce<T>(url: string, secret: string, action: string, payload?
     throw new Transient(`Apps Script trả về không phải JSON (HTTP ${res.status}). Kiểm tra lại URL triển khai.`);
   }
   if (!body.ok) throw new Error(`Apps Script: ${body.error}`);
+  // Every action answers with a `data` field (even `null`). Without one, the
+  // POST was bounced to the script's GET health check: not a real answer.
+  if (!("data" in body)) throw new Transient("Apps Script trả lời thiếu dữ liệu (yêu cầu bị chuyển hướng).");
   return body.data as T;
 }
 
-/** Google hiccups (HTML error pages, dropped connections) worth retrying. */
+/** Google hiccups (HTML error pages, bounced requests) worth retrying. */
 class Transient extends Error {}
+
+/** Dropped connections and timeouts are worth retrying too. */
+const isTransient = (e: unknown) =>
+  e instanceof Transient ||
+  (e instanceof TypeError && e.message === "fetch failed") ||
+  (e instanceof DOMException && (e.name === "TimeoutError" || e.name === "AbortError"));
 
 // Every action except uploads is safe to repeat (reads, upserts by id, deletes).
 const RETRY_DELAYS = [400, 1200];
@@ -43,8 +58,7 @@ async function call<T>(action: string, payload?: unknown): Promise<T> {
     try {
       return await callOnce<T>(url, secret, action, payload);
     } catch (e) {
-      const transient = e instanceof Transient || (e instanceof TypeError && e.message === "fetch failed");
-      if (!transient || attempt >= retries.length) throw e;
+      if (!isTransient(e) || attempt >= retries.length) throw e;
       await new Promise((r) => setTimeout(r, retries[attempt]));
     }
   }
