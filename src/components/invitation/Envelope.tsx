@@ -162,14 +162,24 @@ export function Envelope({ names, date, inviteLine, guest, closing = false, onSt
               <SealPiece clip={RIGHT_PIECE} className="absolute inset-0" style={slide("right", parted ? "translate(5%, 3%) rotate(8deg)" : "")} />
             )}
 
-            {/* The crack drawing itself, clipped to the wax disc */}
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden className={`absolute inset-0 size-full transition-opacity duration-150 ${parted ? "opacity-0" : ""}`}>
+            {/* The crack drawing itself, clipped to the wax disc. Fully transparent
+                until tapped, so no sliver of it can show on the intact seal; when a
+                closing card heals, it fades only after the line has been erased. */}
+            <svg
+              viewBox="0 0 100 100"
+              aria-hidden
+              className="absolute inset-0 size-full"
+              style={{
+                opacity: phase === "crack" ? 1 : 0,
+                transition: `opacity 150ms ${started ? "0ms" : `${CRACK_MS}ms`}`,
+              }}
+            >
               <defs>
                 <clipPath id="seal-disc">
                   <circle cx="50" cy="50" r="46" />
                 </clipPath>
               </defs>
-              <g clipPath="url(#seal-disc)" fill="none" strokeLinejoin="bevel" pathLength={1}>
+              <g clipPath="url(#seal-disc)" fill="none" strokeLinejoin="bevel">
                 {[
                   { stroke: "rgba(255,248,230,.7)", width: 2.2, dx: 0.6 },
                   { stroke: "rgba(80,60,35,.75)", width: 1.4, dx: 0 },
@@ -179,7 +189,7 @@ export function Envelope({ names, date, inviteLine, guest, closing = false, onSt
                     points={CRACK.map(([x, y]) => `${x + l.dx},${y}`).join(" ")}
                     stroke={l.stroke}
                     strokeWidth={l.width}
-                    vectorEffect="non-scaling-stroke"
+                    // pathLength makes "1" the whole line, so the dash draws it from 0 to 100%.
                     pathLength={1}
                     strokeDasharray="1"
                     strokeDashoffset={started ? 0 : 1}
