@@ -1,49 +1,21 @@
 "use client";
 
-import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { MediaThumb, useLightbox } from "../Lightbox";
 import { Reveal } from "../Reveal";
-import { ChevronIcon, CloseIcon } from "../icons";
-import type { Photo } from "@/lib/types";
-import { announceVideo, videoEmbedUrl } from "@/lib/video";
+import { CloseIcon } from "../icons";
 import { usePresence } from "../usePresence";
+import type { Photo } from "@/lib/types";
 
 // The page only ever shows a few photos; the rest live in a full-screen
 // gallery, so a 200-photo album doesn't push the wishes and gift sections
 // far down the page.
 const PREVIEW = 5;
 
-function Thumb({ photo, sizes }: { photo: Photo; sizes: string }) {
-  return (
-    <>
-      <Image
-        src={photo.url}
-        alt={photo.alt}
-        fill
-        quality={90}
-        // Video thumbnails come from YouTube/Drive CDNs as is.
-        unoptimized={!!photo.video}
-        // A Drive video's thumbnail can take a few minutes to exist.
-        onError={(e) => (e.currentTarget.style.visibility = "hidden")}
-        sizes={sizes}
-        className="object-cover transition duration-500 hover:scale-105"
-      />
-      {photo.video && <PlayBadge />}
-    </>
-  );
-}
-
 export function Album({ photos }: { photos: Photo[] }) {
   const [gallery, setGallery] = useState(false);
-  // The index outlives `viewing` so the photo is still there while it fades out.
-  const [active, setActive] = useState(0);
-  const [viewing, setViewing] = useState(false);
   const galleryUi = usePresence(gallery);
-  const lightboxUi = usePresence(viewing);
-  const view = (i: number) => {
-    setActive(i);
-    setViewing(true);
-  };
+  const { view, viewing } = useLightbox();
   const hidden = photos.length - PREVIEW;
   const videos = photos.filter((p) => p.video).length;
   const summary = videos ? `${photos.length - videos} ảnh & ${videos} video` : `${photos.length} ảnh`;
@@ -57,10 +29,10 @@ export function Album({ photos }: { photos: Photo[] }) {
             <Reveal key={p.id} className={i === 0 ? "col-span-2" : ""} delay={i * 90} variant="zoom">
               <button
                 type="button"
-                onClick={() => (more ? setGallery(true) : view(i))}
+                onClick={() => (more ? setGallery(true) : view(photos, i))}
                 className={`relative block w-full overflow-hidden rounded-2xl bg-[#2e2822] ${i === 0 ? "aspect-[4/3]" : "aspect-[3/4]"}`}
               >
-                <Thumb photo={p} sizes={i === 0 ? "(max-width: 480px) 100vw, 440px" : "(max-width: 480px) 50vw, 220px"} />
+                <MediaThumb photo={p} sizes={i === 0 ? "(max-width: 480px) 100vw, 440px" : "(max-width: 480px) 50vw, 220px"} />
                 {more && (
                   <span className="absolute inset-0 flex items-center justify-center bg-black/45 font-serif text-4xl text-white">
                     +{hidden}
@@ -83,10 +55,14 @@ export function Album({ photos }: { photos: Photo[] }) {
         </div>
       )}
       {galleryUi.mounted && (
-        <Gallery photos={photos} title={summary} onPick={view} onClose={() => setGallery(false)} paused={viewing} state={galleryUi.state} />
-      )}
-      {lightboxUi.mounted && (
-        <Lightbox photos={photos} index={active} onChange={setActive} onClose={() => setViewing(false)} state={lightboxUi.state} />
+        <Gallery
+          photos={photos}
+          title={summary}
+          onPick={(i) => view(photos, i)}
+          onClose={() => setGallery(false)}
+          paused={viewing}
+          state={galleryUi.state}
+        />
       )}
     </>
   );
@@ -130,105 +106,11 @@ function Gallery({
         <div className="mx-auto grid max-w-[480px] grid-cols-3 gap-1 p-1 pb-8">
           {photos.map((p, i) => (
             <button key={p.id} type="button" onClick={() => onPick(i)} className="relative aspect-square overflow-hidden bg-[#2e2822]">
-              <Thumb photo={p} sizes="(max-width: 480px) 33vw, 160px" />
+              <MediaThumb photo={p} sizes="(max-width: 480px) 33vw, 160px" />
             </button>
           ))}
         </div>
       </div>
     </div>
-  );
-}
-
-function Lightbox({
-  photos,
-  index,
-  onChange,
-  onClose,
-  state,
-}: {
-  photos: Photo[];
-  index: number;
-  onChange: (i: number) => void;
-  onClose: () => void;
-  state: "open" | "closed";
-}) {
-  const touchX = useRef<number | null>(null);
-  const item = photos[index];
-  const isVideo = !!item.video;
-
-  // Pause the background music while a video is on screen.
-  useEffect(() => {
-    if (!isVideo) return;
-    announceVideo(true);
-    return () => announceVideo(false);
-  }, [isVideo]);
-
-  const go = useCallback(
-    (step: number) => onChange((index + step + photos.length) % photos.length),
-    [index, photos.length, onChange],
-  );
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight") go(1);
-      if (e.key === "ArrowLeft") go(-1);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [go, onClose]);
-
-  return (
-    <div
-      data-state={state}
-      className="ov fixed inset-0 z-[60] flex items-center justify-center bg-black/90"
-      onTouchStart={(e) => (touchX.current = e.touches[0].clientX)}
-      onTouchEnd={(e) => {
-        if (touchX.current === null) return;
-        const dx = e.changedTouches[0].clientX - touchX.current;
-        if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1);
-        touchX.current = null;
-      }}
-    >
-      {item.video ? (
-        <iframe
-          key={item.id}
-          src={videoEmbedUrl(item.video)}
-          title={item.alt || "Video cưới"}
-          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-          allowFullScreen
-          className={`zoom-in ${item.video.vertical ? "aspect-[9/16] h-[80svh] max-w-full" : "aspect-video w-full max-w-3xl"}`}
-        />
-      ) : (
-        // Re-keyed per photo so each one eases in as you swipe.
-        <div key={item.id} className="zoom-in relative h-[80svh] w-full max-w-3xl">
-          <Image src={item.url} alt={item.alt} fill quality={90} sizes="100vw" className="object-contain" />
-        </div>
-      )}
-      <button type="button" aria-label="Đóng" onClick={onClose} className="absolute top-4 right-4 p-2 text-white">
-        <CloseIcon width={26} height={26} />
-      </button>
-      <button type="button" aria-label="Ảnh trước" onClick={() => go(-1)} className="absolute left-2 p-3 text-white/80">
-        <ChevronIcon width={28} height={28} className="rotate-180" />
-      </button>
-      <button type="button" aria-label="Ảnh sau" onClick={() => go(1)} className="absolute right-2 p-3 text-white/80">
-        <ChevronIcon width={28} height={28} />
-      </button>
-      <p className="absolute bottom-5 text-sm text-white/70">
-        {index + 1} / {photos.length}
-      </p>
-    </div>
-  );
-}
-
-function PlayBadge() {
-  return (
-    <span className="absolute inset-0 flex items-center justify-center bg-black/15">
-      <span className="flex size-14 items-center justify-center rounded-full bg-white/85 shadow-lg backdrop-blur-sm">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="#a8704a" aria-hidden>
-          <path d="M8 5.5v13l11-6.5z" />
-        </svg>
-      </span>
-    </span>
   );
 }

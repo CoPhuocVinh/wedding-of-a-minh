@@ -70,7 +70,7 @@ Vào `https://<link-của-bạn>/admin` → đăng nhập.
 
 | Tab | Làm gì |
 |---|---|
-| **Nội dung** | Tên, bố mẹ, lịch nhà trai/nhà gái (âm lịch tự tính), ảnh bìa, dress code, số tài khoản + QR mừng cưới, tiêu đề/ảnh khi chia sẻ link |
+| **Nội dung** | Tên, bố mẹ, **hành trình của chúng tôi** (link video + các cột mốc có ảnh), lịch nhà trai/nhà gái (âm lịch tự tính), ảnh bìa, dress code, nhạc nền, số tài khoản + QR mừng cưới, tiêu đề/ảnh khi chia sẻ link |
 | **Ảnh** | Tải nhiều ảnh cùng lúc, kéo thả sắp xếp album, xoá, "Đặt làm…" ảnh bìa / nền đếm ngược / ảnh cảm ơn / thumbnail |
 | **Các phần** | Kéo thả đổi thứ tự các phần, bật/tắt, sửa tiêu đề |
 | **Khách mời** | Chọn Nhà trai / Nhà gái → dán danh sách (mỗi dòng một khách, vd `Anh Phước Vinh`) → Xem trước → Lưu. Mỗi khách có nút **Copy link** và **Copy lời mời** để gửi Zalo |

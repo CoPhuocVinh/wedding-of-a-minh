@@ -4,6 +4,7 @@ export type SectionType =
   | "hero"
   | "calendar"
   | "couple"
+  | "journey"
   | "events"
   | "dresscode"
   | "album"
@@ -73,6 +74,18 @@ export type Photo = {
   video?: VideoRef;
 };
 
+/** One step of the couple's story. */
+export type Milestone = {
+  id: string;
+  /** Free text: "2019", "Tháng 3, 2021", "14.02.2023"... */
+  when: string;
+  title: string;
+  text: string;
+  photo: string;
+  /** YouTube or Google Drive link; shown instead of the photo when set. */
+  video?: string;
+};
+
 export type GiftAccount = {
   label: string;
   bank: string;
@@ -96,6 +109,11 @@ export type SiteContent = {
   countdownPhoto: string;
   thanksPhoto: string;
   thanksMessage: string;
+  journey: {
+    /** YouTube or Google Drive links, shown above the milestones. */
+    videos: string[];
+    milestones: Milestone[];
+  };
   dressCode: { colors: string[]; note: string };
   gifts: GiftAccount[];
   album: Photo[];

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { VIDEO_EVENT } from "@/lib/video";
+import { LightboxProvider } from "../Lightbox";
 import { CloseIcon, MenuIcon } from "../icons";
 import { usePresence } from "../usePresence";
 import { Envelope, type CardInfo } from "./Envelope";
@@ -119,7 +120,7 @@ export function InvitationShell({ children, envelope, monogram, nav, musicUrl, s
   }
 
   return (
-    <>
+    <LightboxProvider>
       {musicUrl && <audio ref={audio} src={musicUrl} loop preload="auto" />}
 
       <header className="fixed inset-x-0 top-0 z-30 mx-auto flex h-14 max-w-[480px] items-center justify-between border-b border-line/60 bg-cream/85 px-5 backdrop-blur">
@@ -210,6 +211,6 @@ export function InvitationShell({ children, envelope, monogram, nav, musicUrl, s
           onClosed={() => setRevealed(false)}
         />
       )}
-    </>
+    </LightboxProvider>
   );
 }

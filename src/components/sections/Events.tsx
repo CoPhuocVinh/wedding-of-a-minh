@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { MediaThumb, Zoomable } from "../Lightbox";
 import { Reveal } from "../Reveal";
 import { ClockIcon, MapIcon, PinIcon } from "../icons";
 import { dotted, weekday } from "@/lib/date";
@@ -6,15 +6,18 @@ import { lunarLine } from "@/lib/lunar";
 import type { WeddingEvent } from "@/lib/types";
 
 export function Events({ events }: { events: WeddingEvent[] }) {
+  // Event photos form one set in the viewer.
+  const photos = events.filter((e) => e.photo).map((e) => ({ id: e.id, url: e.photo, alt: e.title }));
+
   return (
     <div className="space-y-8">
       {events.map((e, i) => (
         <Reveal key={e.id} variant={i % 2 ? "right" : "left"}>
           <article className="overflow-hidden rounded-3xl bg-card shadow-[0_12px_30px_rgba(120,90,60,.1)]">
             {e.photo && (
-              <div className="relative aspect-[4/3]">
-                <Image src={e.photo} alt={e.title} fill quality={90} sizes="(max-width: 480px) 100vw, 440px" className="object-cover" />
-              </div>
+              <Zoomable items={photos} index={photos.findIndex((p) => p.id === e.id)} className="relative block aspect-[4/3] w-full overflow-hidden">
+                <MediaThumb photo={{ id: e.id, url: e.photo, alt: e.title }} sizes="(max-width: 480px) 100vw, 440px" />
+              </Zoomable>
             )}
             <div className="space-y-3 p-6">
               <h3 className="font-serif text-2xl uppercase">{e.title}</h3>

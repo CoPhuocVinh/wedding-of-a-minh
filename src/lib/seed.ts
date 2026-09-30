@@ -95,6 +95,34 @@ export const seedContent: SiteContent = {
   thanksPhoto: "/sample/couple-1.jpg",
   thanksMessage:
     "Ngày vui thêm phần viên mãn khi có sự hiện diện và chúc phúc của Quý khách!",
+  // Placeholder story: replace in /admin with the couple's real milestones.
+  // The video stands in until their own story video is ready.
+  journey: {
+    videos: ["https://www.youtube.com/watch?v=Tlg574e9fuU"],
+    milestones: [
+      {
+        id: "m1",
+        when: "2019",
+        title: "Lần đầu gặp gỡ",
+        text: "Một buổi chiều rất bình thường, hai người xa lạ tình cờ gặp nhau và câu chuyện bắt đầu từ đó.",
+        photo: "/sample/couple-2.jpg",
+      },
+      {
+        id: "m2",
+        when: "2021",
+        title: "Chính thức bên nhau",
+        text: "Sau những buổi hẹn, những tin nhắn mỗi ngày, chúng mình quyết định nắm tay nhau đi tiếp.",
+        photo: "/sample/couple-1.jpg",
+      },
+      {
+        id: "m3",
+        when: "2026",
+        title: "Lời cầu hôn",
+        text: "Anh hỏi, em gật đầu. Và chúng mình bắt đầu chuẩn bị cho ngày trọng đại.",
+        photo: "/sample/couple-2.jpg",
+      },
+    ],
+  },
   dressCode: {
     colors: ["#ffffff", "#1f1f1f", "#b3261e"],
     note: "Rất vui nếu Quý khách chọn trang phục theo các tông màu này.",
@@ -132,6 +160,7 @@ export const seedContent: SiteContent = {
     { id: "hero", type: "hero", eyebrow: "", title: "", visible: true },
     { id: "calendar", type: "calendar", eyebrow: "Save the date", title: "", visible: true },
     { id: "couple", type: "couple", eyebrow: "Cô dâu & chú rể", title: "Đôi Nét Về Chúng Tôi", visible: true },
+    { id: "journey", type: "journey", eyebrow: "Chuyện tình yêu", title: "Hành Trình Của Chúng Tôi", visible: true },
     { id: "events", type: "events", eyebrow: "Lịch trình", title: "Ngày Trọng Đại", visible: true },
     { id: "dresscode", type: "dresscode", eyebrow: "Dress code", title: "Màu Trang Phục", visible: true },
     { id: "album", type: "album", eyebrow: "Khoảnh khắc", title: "Album Ảnh Cưới", visible: true },

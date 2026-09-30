@@ -4,6 +4,7 @@ import { getContent, getVisibleWishes } from "@/lib/data";
 import { longVi, toInstant } from "@/lib/date";
 import { lunarLine } from "@/lib/lunar";
 import { viewFor, type InviteView, type Section, type Side, type Wish } from "@/lib/types";
+import { MediaThumb, Zoomable } from "../Lightbox";
 import { Petals } from "../Petals";
 import { Reveal } from "../Reveal";
 import { SectionHeading } from "../SectionHeading";
@@ -15,6 +16,7 @@ import { DressCode } from "../sections/DressCode";
 import { Events } from "../sections/Events";
 import { GiftBox } from "../sections/GiftBox";
 import { Hero } from "../sections/Hero";
+import { Journey } from "../sections/Journey";
 import { Wishes } from "../sections/Wishes";
 import { InvitationShell } from "./InvitationShell";
 
@@ -45,6 +47,12 @@ const RENDERERS: Record<Section["type"], (ctx: Ctx) => ReactNode> = {
     <Block id={section.id}>
       <SectionHeading eyebrow={section.eyebrow} title={section.title} />
       <Couple view={view} />
+    </Block>
+  ),
+  journey: ({ view, section }) => (
+    <Block id={section.id}>
+      <SectionHeading eyebrow={section.eyebrow} title={section.title} />
+      <Journey view={view} />
     </Block>
   ),
   events: ({ view, section }) => (
@@ -105,9 +113,12 @@ const RENDERERS: Record<Section["type"], (ctx: Ctx) => ReactNode> = {
     <section id={section.id} className="relative scroll-mt-14 overflow-hidden bg-cream px-5 py-20">
       <Petals tone="cream" />
       <Reveal className="relative text-center" variant="zoom">
-        <div className="relative mx-auto size-48 overflow-hidden rounded-full shadow-[0_12px_30px_rgba(120,90,60,.15)] ring-8 ring-paper">
-          <Image src={content.thanksPhoto} alt="" fill quality={90} sizes="192px" className="object-cover" />
-        </div>
+        <Zoomable
+          items={[{ id: "thanks", url: content.thanksPhoto, alt: `${names[0]} & ${names[1]}` }]}
+          className="relative mx-auto block size-48 overflow-hidden rounded-full shadow-[0_12px_30px_rgba(120,90,60,.15)] ring-8 ring-paper"
+        >
+          <MediaThumb photo={{ id: "thanks", url: content.thanksPhoto, alt: "" }} sizes="192px" />
+        </Zoomable>
         {section.eyebrow && <p className="eyebrow mt-10">{section.eyebrow}</p>}
         {section.title && <h2 className="mt-3 font-serif text-3xl">{section.title}</h2>}
         <p className="mt-5 font-serif text-lg">
@@ -124,6 +135,7 @@ const NAV_FALLBACK: Record<Section["type"], string> = {
   hero: "Trang chủ",
   calendar: "Ngày cưới",
   couple: "Cô dâu & Chú rể",
+  journey: "Hành trình",
   events: "Lịch trình",
   dresscode: "Dress code",
   album: "Album ảnh",

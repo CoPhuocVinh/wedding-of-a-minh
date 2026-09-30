@@ -12,6 +12,7 @@ const NAMES: Record<Section["type"], string> = {
   hero: "Ảnh bìa",
   calendar: "Lịch (save the date)",
   couple: "Cô dâu & chú rể",
+  journey: "Hành trình của chúng tôi",
   events: "Lịch trình",
   dresscode: "Dress code",
   album: "Album ảnh",

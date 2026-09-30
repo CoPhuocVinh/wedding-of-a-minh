@@ -1,6 +1,6 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
-import { seedContent } from "./seed";
+import { withDefaults } from "./defaults";
 import { storage } from "./storage";
 import type { Side, SiteContent } from "./types";
 
@@ -15,9 +15,9 @@ export const TAGS = { content: "content", guests: "guests", wishes: "wishes" } a
 const cache: typeof unstable_cache = (fn, keys, opts) =>
   process.env.NODE_ENV === "development" ? fn : unstable_cache(fn, keys, { revalidate: 300, ...opts });
 
-/** Uncached; seed values fill anything never saved. Used by admin. */
+/** Uncached. Used by admin. */
 export async function loadContent(): Promise<SiteContent> {
-  return { ...seedContent, ...(await storage.getContent()) };
+  return withDefaults(await storage.getContent());
 }
 
 export const getContent = cache(

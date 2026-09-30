@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
-/** How the block enters: rising (default), from a side, or growing. */
-export type RevealVariant = "up" | "left" | "right" | "zoom";
+/** How the block enters: rising (default), from a side, growing, or just fading. */
+export type RevealVariant = "up" | "left" | "right" | "zoom" | "fade";
 
 export function Reveal({
   children,

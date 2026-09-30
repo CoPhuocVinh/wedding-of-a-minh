@@ -53,6 +53,10 @@ body {
 .reveal[data-v="zoom"] {
   transform: scale(0.9);
 }
+/* No transform at all, so absolutely positioned children keep their anchor. */
+.reveal[data-v="fade"] {
+  transform: none;
+}
 .reveal.is-visible {
   opacity: 1;
   transform: none;

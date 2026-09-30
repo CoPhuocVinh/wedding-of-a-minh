@@ -5,6 +5,7 @@ import { saveContent } from "@/app/admin/actions";
 import { lunarLine } from "@/lib/lunar";
 import type { GiftAccount, Person, Side, SideInfo, SiteContent, WeddingEvent } from "@/lib/types";
 import { ImageField, thumb } from "./ImageField";
+import { JourneyEditor } from "./JourneyEditor";
 import { MusicField } from "./MusicField";
 import { Button, Card, Field, Grid, inputCls, SaveBar, TextArea, TextInput, type SaveState } from "./ui";
 
@@ -20,6 +21,7 @@ const KEYS = [
   "countdownPhoto",
   "thanksPhoto",
   "thanksMessage",
+  "journey",
   "dressCode",
   "gifts",
   "music",
@@ -69,6 +71,8 @@ export function ContentEditor({ initial }: { initial: SiteContent }) {
           />
         </Grid>
       </Card>
+
+      <JourneyEditor journey={c.journey} album={c.album} onChange={(v) => set("journey", v)} />
 
       <SidesEditor sides={c.sides} album={c.album} onChange={(v) => set("sides", v)} />
 
