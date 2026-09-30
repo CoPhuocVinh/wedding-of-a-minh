@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AdminNav } from "@/components/admin/AdminNav";
+import { LightboxProvider } from "@/components/Lightbox";
 import { requireAdmin } from "@/lib/auth";
 import { logout } from "../actions";
 
@@ -26,7 +27,10 @@ export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
           <AdminNav />
         </div>
       </header>
-      <main className="mx-auto max-w-4xl px-4 py-5 sm:px-6">{children}</main>
+      {/* Any thumbnail in the panel can open full size in the shared viewer. */}
+      <LightboxProvider>
+        <main className="mx-auto max-w-4xl px-4 py-5 sm:px-6">{children}</main>
+      </LightboxProvider>
     </div>
   );
 }

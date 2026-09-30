@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { Photo } from "@/lib/types";
+import { Zoomable } from "../Lightbox";
 import { Button } from "./ui";
 import { uploadImage } from "./upload";
 
@@ -47,14 +48,20 @@ export function ImageField({
     <div>
       <span className="mb-1 block text-xs font-medium text-stone-600">{label}</span>
       <div className="flex items-center gap-3">
-        <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-stone-200 bg-stone-100">
-          {value ? (
-            // eslint-disable-next-line @next/next/no-img-element
+        {value ? (
+          <Zoomable
+            items={[{ id: "preview", url: value, alt: label }]}
+            label={`Xem ảnh lớn: ${label}`}
+            className="size-20 shrink-0 overflow-hidden rounded-lg border border-stone-200 bg-stone-100"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={thumb(value, 200)} alt="" className="size-full object-cover" />
-          ) : (
+          </Zoomable>
+        ) : (
+          <div className="flex size-20 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-stone-100">
             <span className="text-xs text-stone-400">Chưa có</span>
-          )}
-        </div>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => input.current?.click()} disabled={busy}>
             {busy ? "Đang tải…" : "Tải ảnh lên"}

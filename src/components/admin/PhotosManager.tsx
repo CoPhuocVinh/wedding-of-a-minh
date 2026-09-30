@@ -7,6 +7,7 @@ import { useRef, useState } from "react";
 import { saveContent } from "@/app/admin/actions";
 import type { Photo, SiteContent } from "@/lib/types";
 import { parseVideoUrl, videoThumbnail } from "@/lib/video";
+import { useLightbox } from "../Lightbox";
 import { thumb } from "./ImageField";
 import { Button, Card, inputCls, SaveBar, type SaveState } from "./ui";
 import { uploadImage } from "./upload";
@@ -35,6 +36,7 @@ export function PhotosManager({ initial }: { initial: SiteContent }) {
   const [state, setState] = useState<SaveState>({ status: "idle" });
   const [uploading, setUploading] = useState<{ done: number; total: number; errors: string[] } | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const { view } = useLightbox();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }));
   const dirty = JSON.stringify(s) !== saved;
 
@@ -122,6 +124,7 @@ export function PhotosManager({ initial }: { initial: SiteContent }) {
                   photo={p}
                   index={i}
                   slots={slotsOf(p.url).map((k) => SLOT_LABELS[k])}
+                  onView={() => view(s.album, i)}
                   onAssign={(slot) => setS((prev) => ({ ...prev, [slot]: p.url }))}
                   onRemove={() => {
                     if (confirm(p.video ? "Xoá video này khỏi album? (Video gốc trên YouTube/Drive vẫn giữ nguyên)" : "Xoá ảnh này khỏi album?")) setS((prev) => ({ ...prev, album: prev.album.filter((x) => x.id !== p.id) }));
@@ -142,17 +145,21 @@ function SortablePhoto({
   photo,
   index,
   slots,
+  onView,
   onAssign,
   onRemove,
 }: {
   photo: Photo;
   index: number;
   slots: string[];
+  onView: () => void;
   onAssign: (slot: keyof Slots) => void;
   onRemove: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: photo.id });
   const [menu, setMenu] = useState(false);
+  // The tile is also the drag handle: only a press that didn't travel opens the viewer.
+  const pressedAt = useRef<[number, number] | null>(null);
 
   return (
     <div
@@ -160,7 +167,17 @@ function SortablePhoto({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`relative overflow-hidden rounded-xl border border-stone-200 bg-white ${isDragging ? "z-10 opacity-80 shadow-lg" : ""}`}
     >
-      <div {...attributes} {...listeners} className="relative aspect-square cursor-grab touch-none active:cursor-grabbing">
+      <div
+        {...attributes}
+        {...listeners}
+        aria-label={photo.video ? "Phát video, hoặc kéo để sắp xếp" : "Xem ảnh lớn, hoặc kéo để sắp xếp"}
+        onPointerDownCapture={(e) => (pressedAt.current = [e.clientX, e.clientY])}
+        onClick={(e) => {
+          const from = pressedAt.current;
+          if (from && Math.hypot(e.clientX - from[0], e.clientY - from[1]) < 6) onView();
+        }}
+        className="relative aspect-square cursor-grab touch-none active:cursor-grabbing"
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={thumb(photo.url)} alt="" draggable={false} className="size-full object-cover" />
         {photo.video && (
